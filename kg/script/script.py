@@ -1370,16 +1370,18 @@ hurado_p.add_argument('--local', action='store_true', help='Upload to localhost 
 @set_handler(hurado_p)
 def kg_hurado(format_, args):
     hurado_prefix = 'http://localhost:10000' if args.local else 'https://practice.noi.ph/'
-    KOMPGEN_TOKEN = os.getenv("KOMPGEN_KEY_LOCAL") if args.local else os.getenv("KOMPGEN_KEY")
+    SESSION_TOKEN = os.getenv("SESSION_ID_LOCAL") if args.local else os.getenv("SESSION_ID")
     HURADO_HEADERS = {
         'X-XSRF-PROTECTION': '1',
-        'Kompgen-Token': KOMPGEN_TOKEN,
     }
+    cookies = {'session': SESSION_TOKEN}
+    key_print("Use session ", cookies)
     def post_file(file_path, endpoint_url):
         with open(file_path, 'rb') as file:
             response = requests.post(
                 endpoint_url,
                 headers=HURADO_HEADERS,
+                cookies=cookies,
                 files={'file': file},
             )
             return {
@@ -1442,10 +1444,12 @@ def kg_hurado(format_, args):
     r_existing_hashes = requests.post(
         f'{hurado_prefix}/api/v1/tasks/files/hashes',
         headers=HURADO_HEADERS,
+        cookies=cookies,
         json=list(hash_to_filepath.keys()),
     )
     if r_existing_hashes.status_code != 200:
         key_print('Was unable to verify which hashes have already been uploaded')
+        key_print('Return', r_existing_hashes.status_code)
         return
     existing_hashes = set(r_existing_hashes.json()['saved'])
 
@@ -1575,6 +1579,7 @@ def kg_hurado(format_, args):
     existence_check = requests.get(
         f'{hurado_prefix}/api/v1/tasks/{problem_id}',
         headers=HURADO_HEADERS,
+        cookies=cookies,
         data={
             'id': problem_id,
         },
@@ -1601,6 +1606,7 @@ def kg_hurado(format_, args):
         create = requests.post(
             f'{hurado_prefix}/api/v1/tasks',
             headers=HURADO_HEADERS, 
+            cookies=cookies,
             json=json,
         )
         if create.status_code == 200:
@@ -1617,7 +1623,8 @@ def kg_hurado(format_, args):
         found_id = data['id']
         update = requests.put(
             f'{hurado_prefix}/api/v1/tasks/{found_id}/kg',
-            headers=HURADO_HEADERS, 
+            headers=HURADO_HEADERS,
+            cookies=cookies,
             json=json,
         )
         if update.status_code == 200:
@@ -1841,7 +1848,7 @@ def _kg_compile(format_, args):
         compress=args.compress,
         files=args.files,
         extra_files=args.extra_files,
-        max_workers=args.max_workers,
+        max_workers=int(args.max_workers),
         )
 
 def _get_cms_code(details, code_raw):
